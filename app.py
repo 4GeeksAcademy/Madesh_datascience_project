@@ -8,6 +8,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix, roc_curve, auc
 import seaborn as sns
+from sklearn.inspection import permutation_importance
 
 # Set page config
 st.set_page_config(page_title="Flight Incident Predictor", layout="wide")
@@ -109,9 +110,11 @@ def train_model(df):
     fpr, tpr, _ = roc_curve(y_test, y_prob)
     roc_auc = auc(fpr, tpr)
     
-    # Feature importance
+    # Use permutation importance instead of feature_importances_
+    # This works with any model, including HistGradientBoostingClassifier
+    perm_importance = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=42)
     feature_importances = {name: importance for name, importance in 
-                           zip(X.columns, model.feature_importances_)}
+                          zip(X.columns, perm_importance.importances_mean)}
     
     results = {
         'model': model,
@@ -184,7 +187,8 @@ def main():
             pred_df,
             origin_freq_map=model_results['feature_maps']['origin'],
             dest_freq_map=model_results['feature_maps']['destination'],
-            tail_freq_map=model_results['feature_maps']['tail_number']
+            tail_freq_map=model_results['feature_maps']['tail_number'],
+            training=False
         )
         
         # Make prediction
@@ -295,7 +299,7 @@ def main():
         
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.bar(sorted_importances.keys(), sorted_importances.values())
-        ax.set_xticklabels(sorted_importances.keys(), rotation=45, ha='right')
+        ax.set_xticklabels([k for k in sorted_importances.keys()], rotation=45, ha='right')
         ax.set_title('Feature Importance')
         st.pyplot(fig)
     
